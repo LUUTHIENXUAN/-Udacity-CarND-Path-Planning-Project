@@ -11,10 +11,8 @@ using namespace std;
 class Vehicle {
 public:
 
-  map<string, int> lane_direction = {{"PLCL", 1},
-                                     {"LCL",  1},
-                                     {"LCR", -1},
-                                     {"PLCR",-1}};
+  map<string, int> lane_direction
+  = {{"PLCL", -1}, {"LCL",  -1}, {"LCR", 1}, {"PLCR", 1}};
 
   struct collider{
 
@@ -84,7 +82,7 @@ public:
 
   bool get_vehicle_ahead(map<int, vector<Vehicle>> predictions, int lane, Vehicle & rVehicle);
 
-  vector<Vehicle> generate_predictions(int horizon=2);
+  vector<Vehicle> generate_predictions(int horizon=3);
 
   void realize_next_state(vector<Vehicle> trajectory);
 

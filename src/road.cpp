@@ -40,7 +40,8 @@ void Road::behavior_planning() {
 
 	map<int, Vehicle>::iterator it = this->vehicles.begin();
 
-  while(it != this->vehicles.end()) {
+  while(it != this->vehicles.end())
+  {
 
     int v_id              = it->first;
 
@@ -54,7 +55,8 @@ void Road::behavior_planning() {
   //Update Ego
   it = this->vehicles.begin();
 
-  while(it != this->vehicles.end()) {
+  while(it != this->vehicles.end())
+  {
 
     int v_id = it->first;
 
@@ -65,7 +67,6 @@ void Road::behavior_planning() {
       = it->second.choose_next_state(predictions);
 
       it->second.realize_next_state(trajectory);
-
 
     }
     it++;

@@ -6,10 +6,11 @@
 #include "Behavior_planning/vehicle.h"
 
 
-const float REACH_GOAL     = pow(10, 6);
-const float EFFICIENCY     = 1.0 * pow(10, 5);
+const float REACH_GOAL     = 0.1 * pow(10, 5);
+const float EFFICIENCY     = 2.0 * pow(10, 2);
 const float MAX_ACCELERATE = 1.5 * pow(10, 6);
 const float MAX_SPPED      = 1.5 * pow(10, 6);
+const float LANE_CHANGE    = 1.5 * pow(10, 6);
 
 /*
    Cost increases based on distance of intended lane
@@ -51,26 +52,41 @@ float inefficiency_cost(const Vehicle & vehicle,
                         map<string, float> & data)
 {
 
-    float proposed_speed_intended = lane_speed(predictions, data["intended_lane"]);
+    float proposed_speed_intended
+     = vehicle_ahead_speed(predictions, data["intended_lane"], vehicle); //= lane_speed(predictions, data["intended_lane"]);
 
-    if (proposed_speed_intended < 0 || ! vehicle_ahead_detection(predictions, data["intended_lane"], vehicle))
-    {
-      // no vehicle or no vehicle ahead
-      proposed_speed_intended = vehicle.target_speed;
-    }
+    // no vehicle
+    if ( proposed_speed_intended < 0 ) proposed_speed_intended = vehicle.target_speed;
 
-    float proposed_speed_final = lane_speed(predictions, data["final_lane"]);
+    float proposed_speed_final
+    = vehicle_ahead_speed(predictions, data["final_lane"], vehicle); //= lane_speed(predictions, data["final_lane"]);
 
-    if (proposed_speed_final < 0 || ! vehicle_ahead_detection(predictions, data["final_lane"], vehicle))
-    {
-        // no vehicle no vehicle ahead
-        proposed_speed_final = vehicle.target_speed;
-    }
+    // no vehicle
+    if ( proposed_speed_final < 0) proposed_speed_final = vehicle.target_speed;
 
     float cost
     = (2.0 * vehicle.target_speed - proposed_speed_intended - proposed_speed_final)/vehicle.target_speed;
 
     return cost;
+}
+
+float safety_lane_change_cost(const Vehicle & vehicle,
+                              const vector<Vehicle> & trajectory,
+                              const map<int, vector<Vehicle>> & predictions,
+                              map<string, float> & data)
+{
+
+    if ( data["final_lane"] == data["intended_lane"] ) return 0.0;
+
+    else {
+
+      bool vehicle_beside
+      = vehicle_beside_detection(predictions, data["intended_lane"], vehicle);
+
+      if (vehicle_beside) return 1.0;
+      else return 0.0;
+
+    }
 }
 
 // Penalizes trajectories that exceed the speed limit.
@@ -161,30 +177,97 @@ float lane_speed(const map<int, vector<Vehicle>> & predictions, int lane)
     return -1.0;
 }
 
-bool vehicle_ahead_detection(const map<int, vector<Vehicle>> & predictions,
-                             int lane, const Vehicle & vehicle)
+float vehicle_ahead_speed(const map<int, vector<Vehicle>> & predictions,
+                          int lane, const Vehicle & vehicle)
 {
 
     int min_s          = vehicle.goal_s;
+    bool found_vehicle = false;
+    float speed        = 0;
+
+    Vehicle temp_vehicle;
+
+    for (map<int, vector<Vehicle>>::const_iterator it  = predictions.begin(); it != predictions.end(); ++it)
+    {
+        if (it->first == -1) continue;
+
+        temp_vehicle = it->second[0];
+
+        if (temp_vehicle.lane == lane && temp_vehicle.s > vehicle.s && temp_vehicle.s < min_s)
+        {
+          min_s         = temp_vehicle.s;
+          speed         = temp_vehicle.v;
+          found_vehicle = true;
+        }
+    }
+
+    float shortest_dst = temp_vehicle.s - vehicle.s;
+
+    if (found_vehicle && (shortest_dst < 40) ) return speed;
+
+    else return -1.0; // no vehicle
+
+}
+
+bool vehicle_behind_detection(const map<int, vector<Vehicle>> & predictions,
+                              int lane, const Vehicle & vehicle)
+{
+
+    int  max_s = -1;
     bool found_vehicle = false;
 
     Vehicle temp_vehicle;
 
     for (map<int, vector<Vehicle>>::const_iterator it  = predictions.begin(); it != predictions.end(); ++it)
     {
+        if (it->first == -1) continue;
+
         temp_vehicle = it->second[0];
 
-        if (temp_vehicle.lane == lane && temp_vehicle.s > vehicle.s && temp_vehicle.s < min_s)
+        if (temp_vehicle.lane == lane && temp_vehicle.s <= vehicle.s && temp_vehicle.s > max_s)
         {
-            min_s         = temp_vehicle.s;
-            found_vehicle = true;
-            break;
+            max_s         = temp_vehicle.s;
+            // if this car is near to ego car
+            if ((vehicle.s  - temp_vehicle.s) < 30)
+            {
+              found_vehicle = true;
+              break;
+            }
+
         }
     }
 
     return found_vehicle;
-
 }
+
+bool vehicle_beside_detection(const map<int, vector<Vehicle>> & predictions,
+                              int lane, const Vehicle & vehicle)
+{
+
+    bool found_vehicle = false;
+
+    Vehicle temp_vehicle;
+
+    for (map<int, vector<Vehicle>>::const_iterator it  = predictions.begin(); it != predictions.end(); ++it)
+    {
+        if (it->first == -1) continue;
+
+        temp_vehicle = it->second[0];
+
+        if (temp_vehicle.lane == lane)
+        {
+            if (abs(vehicle.s  - temp_vehicle.s) < 20)
+            {
+              found_vehicle = true;
+              break;
+            }
+
+        }
+    }
+
+    return found_vehicle;
+}
+
 
 /*
 Sum weighted cost functions to get total cost for trajectory.
@@ -200,12 +283,11 @@ float calculate_cost(const Vehicle & vehicle,
     float cost = 0.0;
 
     //Add additional cost functions here.
-    vector<function<float(const Vehicle & , const vector<Vehicle> &, const map<int, vector<Vehicle>> &, map<string, float> &)
-          >> cost_function_list = {goal_distance_cost, inefficiency_cost,
-                                   max_accelerate_cost, speed_limit_cost};
+    vector<function<float(const Vehicle &, const vector<Vehicle> &, const map<int, vector<Vehicle>> &, map<string, float> &) >> cost_function_list
+     = {goal_distance_cost, inefficiency_cost, max_accelerate_cost, speed_limit_cost, safety_lane_change_cost};
 
     vector<float> weight_list
-    = {REACH_GOAL, EFFICIENCY, MAX_ACCELERATE, MAX_SPPED};
+     = {REACH_GOAL, EFFICIENCY, MAX_ACCELERATE, MAX_SPPED, LANE_CHANGE};
 
     vector<float> cost_list;
     for (int i = 0; i < cost_function_list.size(); i++) {
@@ -213,12 +295,12 @@ float calculate_cost(const Vehicle & vehicle,
         float new_cost
         = weight_list[i] * cost_function_list[i](vehicle, trajectory, predictions, trajectory_data);
 
-        cost_list.emplace_back(new_cost);
-        //cost += new_cost;
+        //cost_list.emplace_back(new_cost);
+        cost += new_cost;
     }
 
-    cost = cost_list[0] + cost_list[1] + cost_list[2] + cost_list[3]
-           + (1 / cost_list[0]) * cost_list[1] * cost_list[1] ;
+    //cost = cost_list[0] + cost_list[1] + cost_list[2] + cost_list[3]
+    //       + (1 / cost_list[0]) * cost_list[1] * cost_list[1] ;
 
     return cost;
 }
@@ -245,15 +327,13 @@ map<string, float> get_helper_data(const Vehicle & vehicle,
     float intended_lane;
 
     if (trajectory_last.state.compare("PLCL") == 0)
-
-        intended_lane = trajectory_last.lane + 1;
-
-    else if (trajectory_last.state.compare("PLCR") == 0)
-
         intended_lane = trajectory_last.lane - 1;
 
-    else intended_lane = trajectory_last.lane;
+    else if (trajectory_last.state.compare("PLCR") == 0)
+        intended_lane = trajectory_last.lane + 1;
 
+    else
+     intended_lane = trajectory_last.lane;
 
     float distance_to_goal = vehicle.goal_s - trajectory_last.s;
     float final_lane       = trajectory_last.lane;

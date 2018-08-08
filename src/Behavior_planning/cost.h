@@ -42,8 +42,14 @@ float max_accelerate_cost(const Vehicle & vehicle,
 float lane_speed(const map<int, vector<Vehicle>> & predictions,
                  int lane);
 
-bool vehicle_ahead_detection(const map<int, vector<Vehicle>> & predictions,
-                             int lane, const Vehicle & vehicle);
+float vehicle_ahead_speed(const map<int, vector<Vehicle>> & predictions,
+                              int lane, const Vehicle & vehicle);
+
+bool vehicle_behind_detection(const map<int, vector<Vehicle>> & predictions,
+                              int lane, const Vehicle & vehicle);
+
+bool vehicle_beside_detection(const map<int, vector<Vehicle>> & predictions,
+                              int lane, const Vehicle & vehicle);
 
 map<string, float> get_helper_data(const Vehicle & vehicle,
                                    const vector<Vehicle> & trajectory,

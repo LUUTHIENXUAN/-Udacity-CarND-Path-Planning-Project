@@ -51,6 +51,8 @@ vector<Vehicle> Vehicle::choose_next_state(map<int, vector<Vehicle>> predictions
     vector<string> final_states;
     vector<vector<Vehicle>> final_trajectories;
 
+    cout << "Choose next state:" << endl;
+
     for (vector<string>::iterator it = states.begin(); it != states.end(); ++it)
     {
 
@@ -60,10 +62,10 @@ vector<Vehicle> Vehicle::choose_next_state(map<int, vector<Vehicle>> predictions
         {
 
           cost = calculate_cost(*this, predictions, trajectory);
-
-          //cout << "State [" << *it << "]:" << cost << endl;
+          cout << "+State [" << *it << "]:" << cost << endl;
 
           costs.push_back(cost);
+
           final_trajectories.push_back(trajectory);
         }
     }
@@ -87,35 +89,43 @@ vector<string> Vehicle::successor_states()
 
     string state = this->state;
 
-    if(state.compare("KL") == 0) {
+    cout << "Current state: " << state << " lane: " << lane << endl;
 
-        states.push_back("PLCL");
-        states.push_back("PLCR");
-        /*
-        if (lane != lanes_available - 1){
-          states.push_back("LCL");
+    if(state.compare("KL") == 0)
+    {
+
+        if (lane == (lanes_available - 1)) states.push_back("PLCL");
+
+        else if (lane == 0) states.push_back("PLCR");
+
+        else
+        {
+          states.push_back("PLCL");
+          states.push_back("PLCR");
         }
 
-        if (lane != 0){
-          states.push_back("LCR");
-        }
-        */
+    }
+    else if (state.compare("PLCL") == 0)
+    {
 
-    } else if (state.compare("PLCL") == 0) {
-
-        if (lane != lanes_available - 1) {
+        if (lane != 0)
+        {
 
             states.push_back("PLCL");
             states.push_back("LCL");
         }
 
-    } else if (state.compare("PLCR") == 0) {
+    }
+    else if (state.compare("PLCR") == 0)
+    {
 
-        if (lane != 0) {
+        if (lane != (lanes_available - 1))
+        {
 
             states.push_back("PLCR");
             states.push_back("LCR");
         }
+
     }
 
     //If state is "LCL" or "LCR", then just return "KL"
@@ -184,7 +194,7 @@ vector<float> Vehicle::get_kinematics(map<int, vector<Vehicle>> predictions, int
 
               new_velocity = vehicle_ahead.v;
             }
-
+            /*
             std::cout << " [Get kinematic]"
                       << " ahead|behind"
                       << " lane: " << lane
@@ -192,6 +202,7 @@ vector<float> Vehicle::get_kinematics(map<int, vector<Vehicle>> predictions, int
                       << " dist: " << vehicle_ahead.s - this->s << " < " << this->preferred_buffer
                       << " velocity: " << vehicle_ahead.v
                       << std::endl;
+            */
 
         }
         else {
@@ -201,12 +212,13 @@ vector<float> Vehicle::get_kinematics(map<int, vector<Vehicle>> predictions, int
 
           new_velocity
           = min (min(max_velocity_in_front, max_velocity_accel_limit), this->target_speed);
-
+          /*
           std::cout << " [Get kinematic]"
                     << " ahead|no behind"
                     << " lane: " << lane
                     << " velocity: " << new_velocity
                     << std::endl;
+          */
 
         }
 
@@ -215,12 +227,13 @@ vector<float> Vehicle::get_kinematics(map<int, vector<Vehicle>> predictions, int
     else {
 
         new_velocity = min(max_velocity_accel_limit, this->target_speed);
-
+        /*
         std::cout << " [Get kinematic]"
                   << " no ahead|no behind"
                   << " lane: " << lane
                   << " velocity: " << new_velocity
                   << std::endl;
+        */
 
     }
 
@@ -420,8 +433,6 @@ bool Vehicle::get_vehicle_ahead(map<int, vector<Vehicle>> predictions, int lane,
 
     Vehicle temp_vehicle;
 
-    std::cout << "-----------------------"<< std::endl;
-
     for (map<int, vector<Vehicle>>::iterator it  = predictions.begin(); it != predictions.end(); ++it)
     {
         if (it->first == -1) continue; // skip for ego car "road.h"
@@ -430,21 +441,19 @@ bool Vehicle::get_vehicle_ahead(map<int, vector<Vehicle>> predictions, int lane,
 
         if (temp_vehicle.lane == this->lane && temp_vehicle.s > this->s && temp_vehicle.s < min_s)
         {
-
-            std::cout << "  [vehicle_ahead] s:"
+          /*
+          std::cout << "  [vehicle_ahead] s:"
                       << temp_vehicle.s << "> " << this->s
                       << " lane:" << temp_vehicle.lane << "= " << this->lane
                       << " min_s: " << min_s
                       << std::endl;
-
-            min_s         = temp_vehicle.s;
-            rVehicle      = temp_vehicle;
-            found_vehicle = true;
+          */
+          min_s         = temp_vehicle.s;
+          rVehicle      = temp_vehicle;
+          found_vehicle = true;
 
         }
     }
-
-    std::cout << "-----------------------"<< std::endl;
 
     return found_vehicle;
 }

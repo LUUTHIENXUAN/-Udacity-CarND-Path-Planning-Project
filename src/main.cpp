@@ -41,17 +41,17 @@ int main() {
   Behavior_planning configuration
   */
   //impacts default behavior for most states
-  int SPEED_LIMIT         = 50;
+  int SPEED_LIMIT         = 49;
 
   //all traffic in lane (besides ego) follow these speeds
-  vector<int> LANE_SPEEDS = {50, 50, 50};
+  vector<int> LANE_SPEEDS = {49, 49, 49};
 
   // At each timestep, ego can set acceleration to value between
   //-MAX_ACCEL and MAX_ACCEL
   int MAX_ACCEL           = 10;
 
   // s value and lane number of goal.
-  vector<int> GOAL        = {(int) max_s, 0};
+  vector<int> GOAL        = {(int) max_s, 1};
 
   Road road = Road(SPEED_LIMIT, LANE_SPEEDS);
 
@@ -61,7 +61,7 @@ int main() {
 	vector<int> ego_config = {SPEED_LIMIT, num_lanes, GOAL[0],
 		                        GOAL[1], MAX_ACCEL, SPEED_LIMIT};
 
-  //start in lane 1
+  //start in lane 1 cause we set lane goal is 1
   int lane = 1;
   //have a reference velocity to target
   double ref_vel = 0.0; //max: 49.5 mph
@@ -121,64 +121,20 @@ int main() {
             road.behavior_planning();
 
             Vehicle ego = road.get_ego();
-            std::cout << "[EGO] state: " << ego.state
+
+            std::cout << " [EGO] state: " << ego.state
                       << " lane:"  << ego.lane
                       << " velocity: " << ego.v
                       << " ego_s: " << ego.s << " car_s: " << car_s
                       << std::endl;
 
-            bool too_close = false;
-
-            //find ref_v to use
-            for (int i = 0; i< sensor_fusion.size(); i++){
-
-              //car is in my lane
-              float d = sensor_fusion[i][6];
-
-              //lane is 4 meter
-              if ( d < (2 + 4*lane +2) && d > (2 + 4*lane -2) ){
-
-                double vx = sensor_fusion[i][3];
-                double vy = sensor_fusion[i][4];
-                double check_speed = sqrt( vx*vx + vy*vy);
-                double check_car_s = sensor_fusion[i][5];
-
-                // if using previous points can project x_value
-                check_car_s += (double)prev_size * .02 * check_speed;
-
-                std::cout << "  [vehicle_ahead check] s:"
-                          << check_car_s << "/ " << car_s
-                          << " d:" << d << "/ " << lane
-                          << std::endl;
-
-                //check s values greater than mine and s gap
-                if ((check_car_s > car_s) && (check_car_s - car_s) < 30){
-
-                  //Do some logic here. long reference velocity so we dont crash
-                  //into the car inform of us also flag to try to change lanes
-                  too_close = true;
-
-                  if (lane > 0) lane -= 1;
-                  else lane += 1;
-
-                }
-
-              }
-
-            }
-
-            if (too_close) ref_vel -= .224;
-            else if (ref_vel < 49.5) ref_vel += .224;
-
-
-            lane    = ego.lane;
-            //ref_vel = ego.v;
+            if (car_d < (2 + 4*lane +2) && car_d > (2 + 4*lane -2)) lane = ego.lane;
 
             if (ref_vel > ego.v)
-               ref_vel -= .224;
+               ref_vel -= .224 * 2 ;
 
             else if (ref_vel < ego.v)
-               ref_vel += .224;
+               ref_vel += .224 * 2;
 
             // Create a list of widely spaced (x,y) waypoints, evenly spaced at 30m
             // Later we will interoplate these waypoints with a spline and
